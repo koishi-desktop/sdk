@@ -5,11 +5,11 @@ import (
 	"github.com/goccy/go-json"
 	"github.com/shirou/gopsutil/v3/process"
 	"gopkg.ilharper.com/koi/core/god"
-	"gopkg.ilharper.com/koi/core/util"
 	"gopkg.ilharper.com/koi/sdk/client"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"time"
 )
 
@@ -43,7 +43,6 @@ func (manager *KoiManager) Ensure() (conn *client.Options, err error) {
 		return
 	}
 
-	<-time.After(util.TimeWait)
 	conn, err = manager.Available()
 	return
 }
@@ -69,21 +68,21 @@ func (manager *KoiManager) Available() (conn *client.Options, err error) {
 }
 
 // Start god daemon.
-func (manager *KoiManager) Start() (err error) {
-	cmd := exec.Cmd{
-		Path: manager.exe,
-		Args: []string{"run", "daemon"},
-		Dir:  filepath.Dir(manager.exe),
+func (manager *KoiManager) Start() error {
+	var cmd *exec.Cmd
+	// THE B3ST S0lUt!0N
+	if runtime.GOOS == "windows" {
+		cmd = exec.Command("cmd.exe", "/C", "start", "/b", manager.exe, "run", "daemon")
+	} else {
+		cmd = exec.Command("sh", manager.exe, "run", "daemon")
 	}
-	err = cmd.Start()
+	err := cmd.Run()
 	if err != nil {
-		return
+		return err
 	}
-	err = cmd.Process.Release()
-	if err != nil {
-		return
-	}
-	return
+
+	<-time.After(4 * time.Second)
+	return nil
 }
 
 // Stop the running god daemon if exists.
@@ -97,6 +96,10 @@ func (manager *KoiManager) Start() (err error) {
 // and if process still exists Stop will call Kill
 // to ensure daemon dead.
 func (manager *KoiManager) Stop() {
+	defer func() {
+		<-time.After(2 * time.Second)
+	}()
+
 	conn, connErr := manager.Conn()
 	done := false
 	if connErr == nil {
