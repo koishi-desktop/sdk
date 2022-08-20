@@ -2,15 +2,16 @@ package manage
 
 import (
 	"fmt"
-	"github.com/goccy/go-json"
-	"github.com/shirou/gopsutil/v3/process"
-	"gopkg.ilharper.com/koi/core/god"
-	"gopkg.ilharper.com/koi/sdk/client"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"time"
+
+	"github.com/goccy/go-json"
+	"github.com/shirou/gopsutil/v3/process"
+	"gopkg.ilharper.com/koi/core/god"
+	"gopkg.ilharper.com/koi/sdk/client"
 )
 
 type KoiManager struct {
@@ -113,7 +114,7 @@ func (manager *KoiManager) Stop() {
 		return
 	}
 
-	manager.Kill()
+	_ = manager.Kill()
 	return
 }
 
@@ -121,9 +122,11 @@ func (manager *KoiManager) Stop() {
 //
 // Do not use this method directly,
 // use Stop instead.
-func (manager *KoiManager) Kill() {
-	_ = manager.killProcesses()
+func (manager *KoiManager) Kill() uint16 {
+	killed := manager.tryKillProcesses()
 	manager.tryDeleteLock()
+
+	return killed
 }
 
 func (manager *KoiManager) tryDeleteLock() {
@@ -165,17 +168,27 @@ func (manager *KoiManager) Lock() (*god.DaemonLock, error) {
 	return &lock, nil
 }
 
-func (manager *KoiManager) killProcesses() (err error) {
+func (manager *KoiManager) tryKillProcesses() uint16 {
+	killed, _ := manager.killProcesses()
+	return killed
+}
+
+func (manager *KoiManager) killProcesses() (uint16, error) {
+	var err error
+
 	processes, err := manager.processes()
 	if err != nil {
-		return err
+		return 0, err
 	}
 
+	var killed uint16 = 0
 	for _, p := range processes {
-		_ = p.Kill()
+		if p.Kill() == nil {
+			killed++
+		}
 	}
 
-	return
+	return killed, nil
 }
 
 func (manager *KoiManager) processes() (pss []*process.Process, err error) {
