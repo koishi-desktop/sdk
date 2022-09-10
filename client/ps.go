@@ -9,11 +9,9 @@ import (
 	"gopkg.ilharper.com/x/rpl"
 )
 
-func Import(
+func Ps(
 	conn *Options,
-	path string,
-	name string,
-	force bool,
+	all bool,
 ) (<-chan *proto.Response, <-chan *rpl.Log, error) {
 	var err error
 
@@ -23,11 +21,9 @@ func Import(
 	}
 
 	request := proto.NewCommandRequest(
-		"import",
+		"ps",
 		map[string]any{
-			"path":  path,
-			"name":  name,
-			"force": force,
+			"all": all,
 		},
 	)
 
